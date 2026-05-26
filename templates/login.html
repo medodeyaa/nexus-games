@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="auth-shell">
+        <div class="auth-card">
+            <h1>Nexus Games</h1>
+            <p class="subtitle">Please log in to continue</p>
+
+            <form id="login-form" novalidate>
+                <input class="form-input" type="text" id="username" placeholder="Username or Email" required autocomplete="username">
+                <input class="form-input" type="password" id="password" placeholder="Password" required autocomplete="current-password">
+                <button type="submit" class="btn-add btn-block">Secure Login</button>
+                <div id="message" class="message" role="status" aria-live="polite"></div>
+            </form>
+
+            <hr class="form-divider">
+            <p style="color: var(--muted);">
+                <a href="/forgot-password">Forgot your password?</a>
+            </p>
+            <p style="color: var(--muted); margin-top: 10px;">
+                Don't have an account? <a href="/register">Sign up here</a>
+            </p>
+        </div>
+    </div>
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('message');
+            msg.className = 'message';
+            msg.textContent = '';
+
+            if (!username || !password) {
+                msg.textContent = 'Username and password are required';
+                msg.classList.add('error');
+                return;
+            }
+
+            const { ok, data } = await NEXUS.api('/api/login', {
+                method: 'POST', body: { username, password }
+            });
+            if (ok && data.success) {
+                msg.textContent = 'Login successful! Redirecting...';
+                msg.classList.add('success');
+                setTimeout(() => { window.location.href = '/home'; }, 600);
+            } else {
+                msg.textContent = data.message || 'Login failed.';
+                msg.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>

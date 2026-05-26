@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Cart &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container">
+        <h1>Your Shopping Cart</h1>
+        <div id="cart-items" aria-live="polite"></div>
+        <div class="cart-total">Total: $<span id="cart-total">0.00</span></div>
+        <div style="text-align: right; margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="clear-cart-btn" class="btn-secondary">Clear Cart</button>
+            <a id="checkout-btn" href="/checkout" class="btn-add">Proceed to Checkout</a>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+            NEXUS.renderCartPage();
+            document.getElementById('clear-cart-btn').addEventListener('click', async () => {
+                if (!confirm('Empty the entire cart?')) return;
+                const ok = await NEXUS.clearCart();
+                if (ok) { NEXUS.renderCartPage(); NEXUS.refreshCartCount(); }
+            });
+        });
+    </script>
+</body>
+</html>

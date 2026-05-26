@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: nexus-games
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt && python seed.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    envVars:
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "False"
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: DATABASE_PATH
+        value: /var/data/nexus_games.db
+      - key: APP_BASE_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: ADMIN_SEED_USERNAME
+        value: admin
+      - key: ADMIN_SEED_EMAIL
+        value: admin@nexusgames.app
+      - key: ADMIN_SEED_PASSWORD
+        sync: false
+    disk:
+      name: nexus-data
+      mountPath: /var/data
+      sizeGB: 1

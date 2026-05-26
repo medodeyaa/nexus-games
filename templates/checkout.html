@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container" style="max-width: 950px;">
+        <h1>Checkout</h1>
+
+        <div class="checkout-grid">
+            <div>
+                <h2>Order Summary</h2>
+                <div id="checkout-items" class="summary-box" aria-live="polite">
+                    <p><span class="spinner"></span> Loading…</p>
+                </div>
+                <div class="summary-box" style="margin-top: 16px; text-align: right;">
+                    <h3>Total: <span style="color: var(--success);">$<span id="checkout-total">0.00</span></span></h3>
+                </div>
+            </div>
+
+            <div>
+                <h2>Shipping &amp; Payment</h2>
+                <form id="checkout-form" class="summary-box" novalidate>
+                    <p style="color: var(--muted); margin-bottom: 14px; font-size: 0.9rem;">
+                        Payment is processed securely by Stripe. You'll be redirected to Stripe Checkout.
+                    </p>
+                    <input class="form-input" type="text" id="full_name" placeholder="Full Name" required autocomplete="name" style="margin-bottom:12px;">
+                    <input class="form-input" type="email" id="email" placeholder="Email Address" required autocomplete="email" style="margin-bottom:12px;">
+                    <textarea class="form-input" id="shipping_address" placeholder="Shipping Address" required autocomplete="street-address" style="margin-bottom:12px;"></textarea>
+                    <button type="submit" id="pay-btn" class="btn-add btn-block">Pay with Stripe</button>
+                    <div id="checkout-msg" class="message" role="status" aria-live="polite"></div>
+                </form>
+                <a href="/cart" style="margin-top: 14px; display: inline-block;">&larr; Back to Cart</a>
+            </div>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>
+        window.NEXUS_CSRF = "{{ csrf_token }}";
+        window.STRIPE_PK = "{{ stripe_publishable_key }}";
+    </script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+            document.getElementById('email').value = user.email;
+
+            const itemsBox = document.getElementById('checkout-items');
+            const totalEl = document.getElementById('checkout-total');
+            const { data } = await NEXUS.api('/api/cart');
+            if (!data.success || data.items.length === 0) {
+                itemsBox.innerHTML = '<p style="color: var(--muted);">Your cart is empty. <a href="/home">Continue shopping</a></p>';
+                totalEl.textContent = '0.00';
+                document.getElementById('pay-btn').disabled = true;
+                return;
+            }
+            itemsBox.innerHTML = data.items.map(it => `
+                <div class="summary-line">
+                    <span>${NEXUS.escapeHtml(it.title)}</span>
+                    <span>$${Number(it.price).toFixed(2)}</span>
+                </div>
+            `).join('') + `
+                <div class="summary-total">
+                    <span>Total</span><span>$${Number(data.total).toFixed(2)}</span>
+                </div>`;
+            totalEl.textContent = Number(data.total).toFixed(2);
+
+            document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const msg = document.getElementById('checkout-msg');
+                const btn = document.getElementById('pay-btn');
+                msg.className = 'message';
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner"></span> Creating Stripe session…';
+
+                const body = {
+                    full_name: document.getElementById('full_name').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    shipping_address: document.getElementById('shipping_address').value.trim(),
+                };
+                const { data } = await NEXUS.api('/api/checkout/create-session', { method: 'POST', body });
+                if (data.success && data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                } else {
+                    msg.textContent = data.message || 'Checkout failed.';
+                    msg.classList.add('error');
+                    btn.disabled = false;
+                    btn.textContent = 'Pay with Stripe';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

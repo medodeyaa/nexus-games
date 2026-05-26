@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · Users &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container">
+        <div class="admin-shell">
+            {% with active='users' %}{% include 'admin/_sidebar.html' %}{% endwith %}
+
+            <section>
+                <h1>Users</h1>
+                <div id="users-list" style="margin-top: 20px;">
+                    <p><span class="spinner"></span> Loading…</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        let me = null;
+        document.addEventListener('DOMContentLoaded', async () => {
+            me = await NEXUS.checkAuth();
+            if (!me) return;
+            NEXUS.refreshCartCount();
+            if (!me.is_admin) { window.location.href = '/home'; return; }
+            load();
+        });
+
+        async function load() {
+            const { data } = await NEXUS.api('/api/admin/users');
+            const list = document.getElementById('users-list');
+            if (!data.success) { list.innerHTML = '<p>Failed.</p>'; return; }
+            list.innerHTML = `<table class="data-table">
+                <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Active</th><th>Joined</th><th>Actions</th></tr></thead>
+                <tbody>${data.users.map(u => `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${NEXUS.escapeHtml(u.username)}</td>
+                        <td>${NEXUS.escapeHtml(u.email)}</td>
+                        <td>${u.is_admin ? '✅' : '—'}</td>
+                        <td>${u.is_active ? '✅' : '🚫'}</td>
+                        <td>${NEXUS.escapeHtml(u.created_at)}</td>
+                        <td>
+                            <button class="btn-secondary" data-role="${u.id}" data-newadmin="${u.is_admin ? 0 : 1}"
+                                ${u.id === me.id ? 'disabled' : ''}>
+                                ${u.is_admin ? 'Demote' : 'Promote'}
+                            </button>
+                            <button class="btn-danger" data-active="${u.id}" data-newactive="${u.is_active ? 0 : 1}"
+                                ${u.id === me.id ? 'disabled' : ''}>
+                                ${u.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </td>
+                    </tr>`).join('')}</tbody></table>`;
+            list.querySelectorAll('[data-role]').forEach(b => b.addEventListener('click', async () => {
+                const { data } = await NEXUS.api(`/api/admin/users/${b.dataset.role}`,
+                    { method: 'PUT', body: { is_admin: parseInt(b.dataset.newadmin, 10) === 1 } });
+                if (data.success) { NEXUS.toast('Role updated', 'success'); load(); }
+                else NEXUS.toast(data.message || 'Failed', 'error');
+            }));
+            list.querySelectorAll('[data-active]').forEach(b => b.addEventListener('click', async () => {
+                const { data } = await NEXUS.api(`/api/admin/users/${b.dataset.active}`,
+                    { method: 'PUT', body: { is_active: parseInt(b.dataset.newactive, 10) === 1 } });
+                if (data.success) { NEXUS.toast('Status updated', 'success'); load(); }
+                else NEXUS.toast(data.message || 'Failed', 'error');
+            }));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{# Shared site header. Pages must call NEXUS.checkAuth() on load to populate user info. #}
+<header class="sticky-nav">
+    <div class="logo"><a href="/home" style="color:#fff; text-decoration:none;">Nexus Games</a></div>
+    {% if show_search %}
+    <div class="search-container">
+        <input type="text" id="search-bar" placeholder="Search for games..." aria-label="Search games" autocomplete="off">
+    </div>
+    {% endif %}
+    <nav>
+        <a href="/home">Store</a>
+        <a href="/orders">My Orders</a>
+        <a href="/cart">Cart (<span id="cart-count">0</span>)</a>
+        <a id="nav-admin" href="/admin" style="display:none;">Admin</a>
+        <span id="user-info" class="nav-user"></span>
+        <a href="/logout">Logout</a>
+    </nav>
+</header>

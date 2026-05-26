@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container">
+        <h1>My Orders</h1>
+        <div id="orders-list" style="margin-top: 20px;" aria-live="polite">
+            <p><span class="spinner"></span> Loading orders…</p>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+
+            const list = document.getElementById('orders-list');
+            const { data } = await NEXUS.api('/api/orders');
+            if (!data.success) {
+                list.innerHTML = '<div class="empty"><h3>Could not load orders</h3></div>';
+                return;
+            }
+            if (data.orders.length === 0) {
+                list.innerHTML = `
+                    <div class="empty">
+                        <div class="icon">📦</div>
+                        <h3>No orders yet</h3>
+                        <p>Once you make a purchase it'll show up here.</p>
+                        <p style="margin-top:14px;"><a class="btn-add" href="/home">Start shopping</a></p>
+                    </div>`;
+                return;
+            }
+            list.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Order #</th><th>Date</th><th>Total</th><th>Status</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.orders.map(o => `
+                            <tr>
+                                <td>${o.id}</td>
+                                <td>${NEXUS.escapeHtml(o.created_at)}</td>
+                                <td>$${Number(o.total).toFixed(2)}</td>
+                                <td><span class="status-pill status-${o.status}">${o.status}</span></td>
+                                <td><a href="/thankyou?order_id=${o.id}">View</a></td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        });
+    </script>
+</body>
+</html>

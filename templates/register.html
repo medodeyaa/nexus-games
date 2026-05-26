@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="auth-shell">
+        <div class="auth-card">
+            <h1>Nexus Games</h1>
+            <p class="subtitle">Create your account to get started</p>
+
+            <form id="register-form" novalidate>
+                <input class="form-input" type="text" id="username" placeholder="Username (3–20 letters/digits/_)" required autocomplete="username">
+                <input class="form-input" type="email" id="email" placeholder="Email Address" required autocomplete="email">
+                <input class="form-input" type="password" id="password" placeholder="Password (8+ chars, letter & number)" required autocomplete="new-password">
+                <input class="form-input" type="password" id="confirm-password" placeholder="Confirm Password" required autocomplete="new-password">
+                <button type="submit" class="btn-add btn-block">Create Account</button>
+                <div id="message" class="message" role="status" aria-live="polite"></div>
+            </form>
+
+            <hr class="form-divider">
+            <p style="color: var(--muted);">Already have an account? <a href="/login">Log in here</a></p>
+        </div>
+    </div>
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm-password').value;
+            const msg = document.getElementById('message');
+            msg.className = 'message';
+            msg.textContent = '';
+
+            if (!username || !email || !password || !confirm) {
+                msg.textContent = 'All fields are required';
+                msg.classList.add('error');
+                return;
+            }
+            if (password !== confirm) {
+                msg.textContent = 'Passwords do not match';
+                msg.classList.add('error');
+                return;
+            }
+
+            const { ok, data } = await NEXUS.api('/api/register', {
+                method: 'POST', body: { username, email, password, confirm_password: confirm }
+            });
+            if (ok && data.success) {
+                msg.textContent = data.message + ' Redirecting...';
+                msg.classList.add('success');
+                setTimeout(() => { window.location.href = '/login'; }, 1200);
+            } else {
+                msg.textContent = data.message || 'Registration failed';
+                msg.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>

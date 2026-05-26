@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · Orders &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container">
+        <div class="admin-shell">
+            {% with active='orders' %}{% include 'admin/_sidebar.html' %}{% endwith %}
+
+            <section>
+                <h1>Orders</h1>
+                <div class="filters" style="margin: 20px 0;">
+                    <div class="filter-group">
+                        <label for="filter-status">Status</label>
+                        <select id="filter-status">
+                            <option value="">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="orders-list"><p><span class="spinner"></span> Loading…</p></div>
+            </section>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+            if (!user.is_admin) { window.location.href = '/home'; return; }
+            load();
+            document.getElementById('filter-status').addEventListener('change', load);
+        });
+
+        async function load() {
+            const status = document.getElementById('filter-status').value;
+            const url = '/api/admin/orders' + (status ? `?status=${encodeURIComponent(status)}` : '');
+            const { data } = await NEXUS.api(url);
+            const list = document.getElementById('orders-list');
+            if (!data.success) { list.innerHTML = '<p>Failed.</p>'; return; }
+            if (data.orders.length === 0) { list.innerHTML = '<p style="color: var(--muted);">No orders.</p>'; return; }
+            list.innerHTML = `<table class="data-table">
+                <thead><tr><th>#</th><th>User</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+                <tbody>${data.orders.map(o => `
+                    <tr>
+                        <td>${o.id}</td>
+                        <td>${NEXUS.escapeHtml(o.username)}</td>
+                        <td>${NEXUS.escapeHtml(o.full_name)}</td>
+                        <td>$${Number(o.total).toFixed(2)}</td>
+                        <td><span class="status-pill status-${o.status}">${o.status}</span></td>
+                        <td>${NEXUS.escapeHtml(o.created_at)}</td>
+                        <td>
+                            <select data-status="${o.id}">
+                                ${['pending','paid','shipped','delivered','cancelled'].map(s =>
+                                    `<option value="${s}" ${s===o.status?'selected':''}>${s}</option>`).join('')}
+                            </select>
+                            <a href="/thankyou?order_id=${o.id}" style="margin-left:8px;">View</a>
+                        </td>
+                    </tr>`).join('')}</tbody></table>`;
+            list.querySelectorAll('[data-status]').forEach(sel => {
+                sel.addEventListener('change', async () => {
+                    const id = sel.dataset.status;
+                    const { data } = await NEXUS.api(`/api/admin/orders/${id}`,
+                        { method: 'PUT', body: { status: sel.value } });
+                    if (data.success) { NEXUS.toast('Status updated', 'success'); load(); }
+                    else NEXUS.toast(data.message || 'Failed', 'error');
+                });
+            });
+        }
+    </script>
+</body>
+</html>

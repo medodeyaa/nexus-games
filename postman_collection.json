@@ -1,0 +1,253 @@
+{
+  "info": {
+    "name": "Nexus Games API",
+    "description": "Full API collection for the Nexus Games Flask backend (Phase 2). Login first to populate the session cookie + CSRF token; subsequent state-changing requests use {{csrf_token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000" },
+    { "key": "csrf_token", "value": "" },
+    { "key": "order_id", "value": "" },
+    { "key": "cart_item_id", "value": "" },
+    { "key": "product_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"new@example.com\",\n  \"password\": \"Pass1234\",\n  \"confirm_password\": \"Pass1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (demo)",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "var body = pm.response.json();",
+              "if (body.csrf_token) pm.collectionVariables.set('csrf_token', body.csrf_token);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/login",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"demo\",\n  \"password\": \"Demo1234\"\n}" }
+          }
+        },
+        {
+          "name": "Login (admin)",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "var body = pm.response.json();",
+              "if (body.csrf_token) pm.collectionVariables.set('csrf_token', body.csrf_token);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/login",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin1234\"\n}" }
+          }
+        },
+        {
+          "name": "Whoami",
+          "request": { "method": "GET", "url": "{{base_url}}/api/user" }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "GET", "url": "{{base_url}}/api/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Password reset",
+      "item": [
+        {
+          "name": "Request reset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/password-reset/request",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"demo@nexusgames.local\"\n}" }
+          }
+        },
+        {
+          "name": "Confirm reset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/password-reset/confirm",
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"PASTE_TOKEN_FROM_SERVER_CONSOLE\",\n  \"new_password\": \"Newpass1234\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{base_url}}/api/products" }},
+        { "name": "Search", "request": { "method": "GET", "url": "{{base_url}}/api/products?search=witcher" }},
+        { "name": "Filter by category", "request": { "method": "GET", "url": "{{base_url}}/api/products?category=RPG" }},
+        { "name": "Filter by price",    "request": { "method": "GET", "url": "{{base_url}}/api/products?min_price=40&max_price=70" }},
+        { "name": "Sort price asc",     "request": { "method": "GET", "url": "{{base_url}}/api/products?sort=price_asc" }},
+        { "name": "Get one",            "request": { "method": "GET", "url": "{{base_url}}/api/products/{{product_id}}" }},
+        { "name": "Categories",         "request": { "method": "GET", "url": "{{base_url}}/api/products/categories" }}
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        { "name": "Get cart", "request": { "method": "GET", "url": "{{base_url}}/api/cart" }},
+        {
+          "name": "Add to cart",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "if (pm.response.code === 200) pm.collectionVariables.set('cart_item_id', '1');"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+            ],
+            "url": "{{base_url}}/api/cart",
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1\n}" }
+          }
+        },
+        {
+          "name": "Remove item",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }],
+            "url": "{{base_url}}/api/cart/{{cart_item_id}}"
+          }
+        },
+        {
+          "name": "Clear cart",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }],
+            "url": "{{base_url}}/api/cart"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders & Checkout",
+      "item": [
+        {
+          "name": "Create Stripe session",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "var body = pm.response.json();",
+              "if (body.order_id) pm.collectionVariables.set('order_id', body.order_id);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+            ],
+            "url": "{{base_url}}/api/checkout/create-session",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"shipping_address\": \"123 Main St, Anywhere\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Confirm payment (after Stripe redirect)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }],
+            "url": "{{base_url}}/api/checkout/confirm/{{order_id}}"
+          }
+        },
+        { "name": "List my orders", "request": { "method": "GET", "url": "{{base_url}}/api/orders" }},
+        { "name": "Order detail",   "request": { "method": "GET", "url": "{{base_url}}/api/orders/{{order_id}}" }}
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        { "name": "Stats",      "request": { "method": "GET", "url": "{{base_url}}/api/admin/stats" }},
+        { "name": "List products", "request": { "method": "GET", "url": "{{base_url}}/api/admin/products" }},
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sample Game\",\n  \"price\": 29.99,\n  \"category\": \"Puzzle\",\n  \"description\": \"A fresh puzzler\",\n  \"image\": \"photos/sample.jpg\",\n  \"stock\": 50\n}"
+            }
+          }
+        },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/products/{{product_id}}",
+            "body": { "mode": "raw", "raw": "{\n  \"price\": 39.99,\n  \"stock\": 25\n}" }
+          }
+        },
+        {
+          "name": "Delete product",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }],
+            "url": "{{base_url}}/api/admin/products/{{product_id}}"
+          }
+        },
+        { "name": "List orders", "request": { "method": "GET", "url": "{{base_url}}/api/admin/orders" }},
+        {
+          "name": "Update order status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"shipped\"\n}" }
+          }
+        },
+        { "name": "List users", "request": { "method": "GET", "url": "{{base_url}}/api/admin/users" }},
+        {
+          "name": "Promote/Demote user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/users/2",
+            "body": { "mode": "raw", "raw": "{\n  \"is_admin\": true\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}

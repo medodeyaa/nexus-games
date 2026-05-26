@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container">
+        <div class="admin-shell">
+            {% with active='dashboard' %}{% include 'admin/_sidebar.html' %}{% endwith %}
+
+            <section>
+                <h1>Dashboard</h1>
+                <div id="stat-grid" class="stat-grid" style="margin-top: 18px;">
+                    <p><span class="spinner"></span> Loading…</p>
+                </div>
+
+                <h2 style="margin-top: 30px;">Low-stock products</h2>
+                <div id="low-stock" style="margin-top: 12px;"></div>
+
+                <h2 style="margin-top: 30px;">Recent orders</h2>
+                <div id="recent-orders" style="margin-top: 12px;"></div>
+            </section>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+            if (!user.is_admin) { window.location.href = '/home'; return; }
+
+            const { data } = await NEXUS.api('/api/admin/stats');
+            if (!data.success) {
+                document.getElementById('stat-grid').innerHTML =
+                    '<p>Failed to load stats.</p>';
+                return;
+            }
+            const s = data.stats;
+            document.getElementById('stat-grid').innerHTML = `
+                <div class="stat-card"><div class="label">Users</div><div class="value">${s.users}</div></div>
+                <div class="stat-card"><div class="label">Products</div><div class="value">${s.products}</div></div>
+                <div class="stat-card"><div class="label">Orders</div><div class="value">${s.orders}</div></div>
+                <div class="stat-card"><div class="label">Paid orders</div><div class="value">${s.paid_orders}</div></div>
+                <div class="stat-card"><div class="label">Revenue</div><div class="value">$${Number(s.revenue).toFixed(2)}</div></div>
+            `;
+            const low = document.getElementById('low-stock');
+            low.innerHTML = s.low_stock.length === 0
+                ? '<p style="color: var(--muted);">No low-stock items 🎉</p>'
+                : `<table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Stock</th></tr></thead>
+                    <tbody>${s.low_stock.map(r =>
+                        `<tr><td>${r.id}</td><td>${NEXUS.escapeHtml(r.title)}</td><td>${r.stock}</td></tr>`).join('')}
+                    </tbody></table>`;
+            const ro = document.getElementById('recent-orders');
+            ro.innerHTML = s.recent_orders.length === 0
+                ? '<p style="color: var(--muted);">No orders yet.</p>'
+                : `<table class="data-table"><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>${s.recent_orders.map(o =>
+                        `<tr><td>${o.id}</td><td>${NEXUS.escapeHtml(o.full_name)}</td>
+                            <td>$${Number(o.total).toFixed(2)}</td>
+                            <td><span class="status-pill status-${o.status}">${o.status}</span></td>
+                            <td>${NEXUS.escapeHtml(o.created_at)}</td></tr>`).join('')}
+                    </tbody></table>`;
+        });
+    </script>
+</body>
+</html>

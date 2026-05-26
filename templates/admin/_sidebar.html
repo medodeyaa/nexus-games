@@ -1,0 +1,9 @@
+<aside class="admin-sidebar">
+    <h3>Admin Panel</h3>
+    <a href="/admin" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="/admin/products" class="{% if active == 'products' %}active{% endif %}">Products</a>
+    <a href="/admin/orders" class="{% if active == 'orders' %}active{% endif %}">Orders</a>
+    <a href="/admin/users" class="{% if active == 'users' %}active{% endif %}">Users</a>
+    <hr style="margin: 14px 0; border: none; border-top: 1px solid var(--surface-2);">
+    <a href="/home">&larr; Back to Store</a>
+</aside>

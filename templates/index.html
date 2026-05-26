@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Digital Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% with show_search=True %}{% include '_nav.html' %}{% endwith %}
+
+    <main id="app-content" class="container">
+        <section class="hero">
+            <h1>Welcome to Nexus Games</h1>
+            <p>Your portal to the best digital adventures.</p>
+        </section>
+
+        <section class="filters" aria-label="Product filters">
+            <div class="filter-group">
+                <label for="filter-category">Category</label>
+                <select id="filter-category"><option value="">All categories</option></select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-min-price">Min $</label>
+                <input id="filter-min-price" type="number" min="0" step="1" placeholder="0">
+            </div>
+            <div class="filter-group">
+                <label for="filter-max-price">Max $</label>
+                <input id="filter-max-price" type="number" min="0" step="1" placeholder="200">
+            </div>
+            <div class="filter-group">
+                <label for="filter-sort">Sort</label>
+                <select id="filter-sort">
+                    <option value="title">Title (A-Z)</option>
+                    <option value="price_asc">Price (low to high)</option>
+                    <option value="price_desc">Price (high to low)</option>
+                    <option value="newest">Newest</option>
+                </select>
+            </div>
+        </section>
+
+        <section class="product-grid" id="product-grid" aria-live="polite"></section>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.setupStoreFilters();
+            NEXUS.refreshCartCount();
+        });
+    </script>
+</body>
+</html>

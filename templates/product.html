@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Details &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container" id="product-details-container" style="margin-top: 40px;">
+        <p><span class="spinner"></span> Loading product…</p>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+
+            const id = parseInt(new URLSearchParams(window.location.search).get('id'), 10);
+            const container = document.getElementById('product-details-container');
+            if (!id) {
+                container.innerHTML = '<h2>Game not found.</h2><a href="/home">Back to Store</a>';
+                return;
+            }
+            const { data } = await NEXUS.api(`/api/products/${id}`);
+            if (!data.success) {
+                container.innerHTML = `<h2>${data.message || 'Game not found.'}</h2><a href="/home">Back to Store</a>`;
+                return;
+            }
+            const p = data.product;
+            const stockMsg = p.stock <= 0
+                ? '<p style="color: var(--danger); font-weight:bold;">Out of stock</p>'
+                : `<p style="color: var(--muted);">${p.stock} in stock</p>`;
+            const btnDisabled = p.stock <= 0 ? 'disabled' : '';
+
+            container.innerHTML = `
+                <div class="product-detail">
+                    <div class="image-col">
+                        <img src="/static/${encodeURI(p.image)}" alt="${NEXUS.escapeAttr(p.title)}" loading="lazy">
+                    </div>
+                    <div class="info-col">
+                        <h1>${NEXUS.escapeHtml(p.title)}</h1>
+                        <p class="genre">Genre: ${NEXUS.escapeHtml(p.category)}</p>
+                        <p class="desc">${NEXUS.escapeHtml(p.description)}</p>
+                        ${stockMsg}
+                        <h2 class="price-large">$${Number(p.price).toFixed(2)}</h2>
+                        <button id="add-btn" class="btn-add" style="max-width: 280px;" ${btnDisabled}>Add to Cart</button>
+                    </div>
+                </div>`;
+            const addBtn = document.getElementById('add-btn');
+            if (addBtn) addBtn.addEventListener('click', () => NEXUS.addToCart(p.id));
+        });
+    </script>
+</body>
+</html>

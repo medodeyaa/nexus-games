@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Complete &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container" style="max-width: 700px; margin-top: 40px;">
+        <div id="order-container" class="summary-box" style="padding: 40px; text-align: center;">
+            <p><span class="spinner"></span> Confirming your payment…</p>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+
+            const params = new URLSearchParams(window.location.search);
+            const orderId = params.get('order_id');
+            const stripeSession = params.get('stripe_session');
+            const container = document.getElementById('order-container');
+
+            if (!orderId) {
+                container.innerHTML = `
+                    <h1 style="color: var(--success);">Thank you!</h1>
+                    <p>Your purchase has been recorded.</p>
+                    <p style="margin-top: 18px;"><a class="btn-add" href="/home">Return to Store</a></p>`;
+                return;
+            }
+
+            if (stripeSession) {
+                await NEXUS.api(`/api/checkout/confirm/${orderId}`, { method: 'POST' });
+            }
+
+            const { data } = await NEXUS.api(`/api/orders/${orderId}`);
+            if (!data.success) {
+                container.innerHTML = `<h2>Order not found</h2><p>${data.message || ''}</p>
+                    <p style="margin-top:18px;"><a class="btn-add" href="/home">Return to Store</a></p>`;
+                return;
+            }
+
+            const o = data.order;
+            const itemsHtml = o.items.map(it => `
+                <div class="summary-line">
+                    <span>${NEXUS.escapeHtml(it.title_snapshot)} &times; ${it.quantity}</span>
+                    <span>$${Number(it.price_at_purchase).toFixed(2)}</span>
+                </div>`).join('');
+            const statusClass = `status-${o.status}`;
+
+            container.innerHTML = `
+                <h1 style="color: var(--success);">Payment ${o.status === 'paid' ? 'Successful!' : 'Received'}</h1>
+                <p style="color: var(--muted); margin-bottom: 18px;">Order #${o.id} &mdash;
+                    <span class="status-pill ${statusClass}">${o.status}</span></p>
+                <div style="text-align: left; margin: 24px 0;">
+                    ${itemsHtml}
+                    <div class="summary-total"><span>Total</span><span>$${Number(o.total).toFixed(2)}</span></div>
+                </div>
+                <div style="text-align: left; color: var(--muted); font-size: 0.9rem;">
+                    <p><strong>Shipping to:</strong></p>
+                    <p>${NEXUS.escapeHtml(o.full_name)}</p>
+                    <p>${NEXUS.escapeHtml(o.email)}</p>
+                    <p>${NEXUS.escapeHtml(o.shipping_address)}</p>
+                </div>
+                <div style="margin-top: 26px; display: flex; gap: 12px; justify-content: center;">
+                    <a class="btn-add" href="/home">Return to Store</a>
+                    <a class="btn-secondary" href="/orders">My Orders</a>
+                </div>`;
+        });
+    </script>
+</body>
+</html>

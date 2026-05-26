@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · Products &mdash; Nexus Games</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="container">
+        <div class="admin-shell">
+            {% with active='products' %}{% include 'admin/_sidebar.html' %}{% endwith %}
+
+            <section>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 12px;">
+                    <h1>Products</h1>
+                    <button id="new-btn" class="btn-add">+ New Product</button>
+                </div>
+                <div id="products-list" style="margin-top: 20px;">
+                    <p><span class="spinner"></span> Loading…</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="modal" class="modal-backdrop hidden">
+        <div class="modal">
+            <h2 id="modal-title">Edit Product</h2>
+            <form id="modal-form" novalidate>
+                <input type="hidden" id="p-id">
+                <input class="form-input" id="p-title" placeholder="Title" required style="margin-bottom:10px;">
+                <input class="form-input" id="p-category" placeholder="Category" required style="margin-bottom:10px;">
+                <div class="form-row" style="margin-bottom:10px;">
+                    <input class="form-input" id="p-price" type="number" step="0.01" min="0" placeholder="Price" required>
+                    <input class="form-input" id="p-stock" type="number" step="1" min="0" placeholder="Stock" required>
+                </div>
+                <input class="form-input" id="p-image" placeholder="Image path (e.g. photos/foo.jpg)" style="margin-bottom:10px;">
+                <textarea class="form-input" id="p-description" placeholder="Description"></textarea>
+                <div id="modal-msg" class="message"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-add">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% include '_footer.html' %}
+
+    <script>window.NEXUS_CSRF = "{{ csrf_token }}";</script>
+    <script src="/static/main.js"></script>
+    <script>
+        const modal = document.getElementById('modal');
+        const form = document.getElementById('modal-form');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await NEXUS.checkAuth();
+            if (!user) return;
+            NEXUS.refreshCartCount();
+            if (!user.is_admin) { window.location.href = '/home'; return; }
+            loadProducts();
+            document.getElementById('new-btn').addEventListener('click', () => openModal(null));
+            document.getElementById('modal-cancel').addEventListener('click', closeModal);
+            form.addEventListener('submit', saveProduct);
+        });
+
+        async function loadProducts() {
+            const list = document.getElementById('products-list');
+            const { data } = await NEXUS.api('/api/admin/products');
+            if (!data.success) { list.innerHTML = '<p>Failed.</p>'; return; }
+            if (data.products.length === 0) { list.innerHTML = '<p style="color: var(--muted);">No products.</p>'; return; }
+            list.innerHTML = `<table class="data-table">
+                <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Price</th><th>Stock</th><th></th></tr></thead>
+                <tbody>${data.products.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${NEXUS.escapeHtml(p.title)}</td>
+                        <td>${NEXUS.escapeHtml(p.category)}</td>
+                        <td>$${Number(p.price).toFixed(2)}</td>
+                        <td>${p.stock}</td>
+                        <td>
+                            <button class="btn-secondary" data-edit='${JSON.stringify(p).replace(/'/g, "&#39;")}'>Edit</button>
+                            <button class="btn-danger" data-del="${p.id}">Delete</button>
+                        </td>
+                    </tr>`).join('')}</tbody></table>`;
+            list.querySelectorAll('[data-edit]').forEach(b =>
+                b.addEventListener('click', () => openModal(JSON.parse(b.dataset.edit.replace(/&#39;/g, "'")))));
+            list.querySelectorAll('[data-del]').forEach(b =>
+                b.addEventListener('click', () => deleteProduct(parseInt(b.dataset.del, 10))));
+        }
+
+        function openModal(p) {
+            document.getElementById('modal-title').textContent = p ? 'Edit Product' : 'New Product';
+            document.getElementById('p-id').value = p ? p.id : '';
+            document.getElementById('p-title').value = p ? p.title : '';
+            document.getElementById('p-category').value = p ? p.category : '';
+            document.getElementById('p-price').value = p ? p.price : '';
+            document.getElementById('p-stock').value = p ? p.stock : 100;
+            document.getElementById('p-image').value = p ? p.image : '';
+            document.getElementById('p-description').value = p ? p.description : '';
+            document.getElementById('modal-msg').textContent = '';
+            modal.classList.remove('hidden');
+        }
+        function closeModal() { modal.classList.add('hidden'); }
+
+        async function saveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('p-id').value;
+            const body = {
+                title: document.getElementById('p-title').value.trim(),
+                category: document.getElementById('p-category').value.trim(),
+                price: parseFloat(document.getElementById('p-price').value),
+                stock: parseInt(document.getElementById('p-stock').value, 10),
+                image: document.getElementById('p-image').value.trim(),
+                description: document.getElementById('p-description').value.trim(),
+            };
+            const url = id ? `/api/admin/products/${id}` : '/api/admin/products';
+            const method = id ? 'PUT' : 'POST';
+            const { data } = await NEXUS.api(url, { method, body });
+            const msg = document.getElementById('modal-msg');
+            msg.className = 'message';
+            if (data.success) {
+                NEXUS.toast(id ? 'Updated' : 'Created', 'success');
+                closeModal(); loadProducts();
+            } else {
+                msg.textContent = data.message || 'Failed.';
+                msg.classList.add('error');
+            }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Delete product #' + id + '?')) return;
+            const { data } = await NEXUS.api(`/api/admin/products/${id}`, { method: 'DELETE' });
+            if (data.success) {
+                NEXUS.toast('Deleted', 'info'); loadProducts();
+            } else {
+                NEXUS.toast(data.message || 'Failed', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
