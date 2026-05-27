@@ -99,12 +99,29 @@ def close_db(_exc):
 
 
 def init_db_if_missing():
-    """Auto-create schema + seed on first run if DB doesn't exist."""
+    """Auto-create schema + seed on first run if DB doesn't exist.
+
+    Called at import time so it runs under gunicorn / Render too,
+    not just under `python app.py`.
+    """
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except OSError as exc:
+            print(f"[app] Cannot create DB dir {db_dir}: {exc}", flush=True)
     if os.path.exists(DB_PATH):
         return
-    print(f"[app] DB not found at {DB_PATH}; running seed.py …")
-    import seed
-    seed.main()
+    print(f"[app] DB not found at {DB_PATH}; running seed.py …", flush=True)
+    try:
+        import seed
+        seed.main()
+    except Exception as exc:  # don't let startup crash silently
+        print(f"[app] Seed failed: {exc}", flush=True)
+
+
+# Run at module load so gunicorn / WSGI also initializes the DB
+init_db_if_missing()
 
 
 # ────────────────────────────────────────────────────────────────────
